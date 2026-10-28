@@ -25,7 +25,7 @@ Add Commando to your `pom.xml`:
 
 ```xml
 <dependency>
-    <groupId>com.yourname</groupId>
+    <groupId>dev.stevanoac</groupId>
     <artifactId>commando</artifactId>
     <version>1.0.0</version>
     <scope>compile</scope>
@@ -48,7 +48,7 @@ If you're shading it into your final jar, make sure to relocate it in the `maven
             <configuration>
                 <relocations>
                     <relocation>
-                        <pattern>com.yourname.commando</pattern>
+                        <pattern>dev.stevanoac.commando</pattern>
                         <shadedPattern>com.yourplugin.libs.commando</shadedPattern>
                     </relocation>
                 </relocations>
