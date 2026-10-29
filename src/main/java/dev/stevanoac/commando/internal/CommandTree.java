@@ -1,6 +1,6 @@
 package dev.stevanoac.commando.internal;
 
-import dev.stevanoac.commando.CommandFramework;
+import dev.stevanoac.commando.Commando;
 import dev.stevanoac.commando.adapter.ArgumentAdapter;
 import dev.stevanoac.commando.annotation.Command;
 import dev.stevanoac.commando.help.HelpEntry;
@@ -27,13 +27,13 @@ public class CommandTree {
     private final String permissionMessage;
     private final boolean console;
     private final long cooldown;
-    private final CommandFramework framework;
+    private final Commando framework;
 
     private final RouteNode rootNode;
     private HelpHandler helpHandler;
     private HelpPaginator cachedPaginator;
 
-    public CommandTree(CommandFramework framework, Command annotation, String rootName) {
+    public CommandTree(Commando framework, Command annotation, String rootName) {
         this.framework = Objects.requireNonNull(framework, "CommandFramework cannot be null");
         this.rootName = rootName.toLowerCase();
         this.rootNode = new RouteNode(this.rootName, null);

@@ -22,7 +22,7 @@ import java.util.*;
  * Modern, annotation-driven Spigot Command Framework featuring path-based tree routing,
  * custom argument adapters, universal tab-completion, and paginated help.
  */
-public class CommandFramework {
+public class Commando {
 
     private final Plugin plugin;
     private final CooldownManager cooldownManager;
@@ -37,7 +37,7 @@ public class CommandFramework {
     private String noPermissionMessage = "&cYou do not have permission to execute this command.";
     private String cooldownMessage = "&cPlease wait {seconds}s before using this command again.";
 
-    public CommandFramework(Plugin plugin) {
+    public Commando(Plugin plugin) {
         this.plugin = Objects.requireNonNull(plugin, "Plugin cannot be null");
         this.cooldownManager = new CooldownManager();
 
@@ -71,7 +71,7 @@ public class CommandFramework {
      * @param <T> adapter type
      * @return this framework instance for fluent chaining
      */
-    public <T> CommandFramework registerAdapter(Class<T> type, ArgumentAdapter<T> adapter) {
+    public <T> Commando registerAdapter(Class<T> type, ArgumentAdapter<T> adapter) {
         Objects.requireNonNull(type, "Type cannot be null");
         Objects.requireNonNull(adapter, "Adapter cannot be null");
         adapters.put(type, adapter);
@@ -399,7 +399,7 @@ public class CommandFramework {
         return playerOnlyMessage;
     }
 
-    public CommandFramework setPlayerOnlyMessage(String playerOnlyMessage) {
+    public Commando setPlayerOnlyMessage(String playerOnlyMessage) {
         this.playerOnlyMessage = playerOnlyMessage;
         return this;
     }
@@ -408,7 +408,7 @@ public class CommandFramework {
         return noPermissionMessage;
     }
 
-    public CommandFramework setNoPermissionMessage(String noPermissionMessage) {
+    public Commando setNoPermissionMessage(String noPermissionMessage) {
         this.noPermissionMessage = noPermissionMessage;
         return this;
     }
@@ -417,7 +417,7 @@ public class CommandFramework {
         return cooldownMessage;
     }
 
-    public CommandFramework setCooldownMessage(String cooldownMessage) {
+    public Commando setCooldownMessage(String cooldownMessage) {
         this.cooldownMessage = cooldownMessage;
         return this;
     }

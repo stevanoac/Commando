@@ -1,6 +1,6 @@
 package dev.stevanoac.commando.internal;
 
-import dev.stevanoac.commando.CommandFramework;
+import dev.stevanoac.commando.Commando;
 import dev.stevanoac.commando.adapter.ArgumentAdapter;
 import dev.stevanoac.commando.argument.CommandArgs;
 import dev.stevanoac.commando.cooldown.CooldownManager;
@@ -56,7 +56,7 @@ public class RouteHandler {
         }
     }
 
-    public boolean execute(CommandSender sender, String label, String[] remainingArgs, CommandFramework framework) {
+    public boolean execute(CommandSender sender, String label, String[] remainingArgs, Commando framework) {
         // 1. Console vs Player check
         if (!console && !(sender instanceof Player)) {
             sender.sendMessage(ChatColor.translateAlternateColorCodes('&', framework.getPlayerOnlyMessage()));
