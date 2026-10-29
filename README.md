@@ -157,7 +157,7 @@ public class ArenaAdapter implements ArgumentAdapter<Arena> {
 
 Whenever a method expects an `Arena` parameter, Commando runs this adapter to resolve the argument. If the player types an invalid name, it catches the exception and sends them the error message automatically.
 
-### 4. Paginated Help
+### 4. Paginated Help & Custom Formatting
 
 Add `@Help` to automatically generate a `/<command> help [page]` route for any root command. Commando filters the list so players only see commands they actually have permission to run.
 
@@ -170,6 +170,52 @@ public class ArenaCommand {
         help.send(sender);
     }
 }
+```
+
+#### Customizing Help Formats
+
+You can customize the layout, colors, and placeholders globally across all commands using `commando.setHelpFormat(...)` (or `commando.setPaginatorFormat(...)`):
+
+```java
+// Quick 3-part header / entry / footer format
+commando.setPaginatorFormat(
+    "&8------\n&eHelp &6%page% &7/ &6%maxPages%",
+    "&e/%command% &7- %description%",
+    "&8------"
+);
+```
+
+Or configure it with the fluent builder for advanced control (e.g. separate last-page footers, empty messages):
+
+```java
+commando.setHelpFormat(HelpFormat.builder()
+    .header("&8&m----------------------------------------", "&eHelp for &6/%COMMAND% &7(&e%page%&7/&e%maxPages%&7)")
+    .entry("  &e/%syntax% &7- %description%")
+    .footer("&7Type &e/%command% help %nextPage% &7for more pages.", "&8&m----------------------------------------")
+    .lastPageFooter("&7You have reached the end of the help list.", "&8&m----------------------------------------")
+    .emptyMessage("&cNo commands are currently available.")
+    .build()
+);
+```
+
+You can also override formats individually on any `HelpPaginator` inside your `@Help` method via `help.setFormat(...)`.
+
+#### Available Placeholders
+
+- **Header / Footer / Empty Message:**
+  - `%command%` / `%root%` — Root command name (e.g. `arena`)
+  - `%COMMAND%` / `%ROOT%` — Uppercase root command name (e.g. `ARENA`)
+  - `%page%` — Current page number
+  - `%maxPages%` / `%totalPages%` — Total available pages
+  - `%nextPage%` — Next page number
+  - `%prevPage%` — Previous page number
+  - `%totalEntries%` — Total count of visible commands
+- **Entry Lines:**
+  - `%command%` / `%syntax%` — Command route syntax (e.g. `arena create <name>`)
+  - `%description%` — Command description (automatically cleans up preceding ` - ` when empty)
+  - `%permission%` — Permission node required
+  - `%page%`, `%maxPages%`, `%root%`, `%COMMAND%`
+- All lines support standard Minecraft `&` color code translations automatically (both `%placeholder%` and `{placeholder}` styles are accepted).
 ```
 
 ---

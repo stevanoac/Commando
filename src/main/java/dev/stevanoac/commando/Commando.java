@@ -5,6 +5,7 @@ import dev.stevanoac.commando.annotation.Command;
 import dev.stevanoac.commando.annotation.Default;
 import dev.stevanoac.commando.annotation.Help;
 import dev.stevanoac.commando.cooldown.CooldownManager;
+import dev.stevanoac.commando.help.HelpFormat;
 import dev.stevanoac.commando.internal.BukkitCommandWrapper;
 import dev.stevanoac.commando.internal.CommandTree;
 import dev.stevanoac.commando.internal.HelpHandler;
@@ -36,6 +37,7 @@ public class Commando {
     private String playerOnlyMessage = "&cThis command can only be executed by players.";
     private String noPermissionMessage = "&cYou do not have permission to execute this command.";
     private String cooldownMessage = "&cPlease wait {seconds}s before using this command again.";
+    private HelpFormat helpFormat = HelpFormat.defaultFormat();
 
     public Commando(Plugin plugin) {
         this.plugin = Objects.requireNonNull(plugin, "Plugin cannot be null");
@@ -420,5 +422,85 @@ public class Commando {
     public Commando setCooldownMessage(String cooldownMessage) {
         this.cooldownMessage = cooldownMessage;
         return this;
+    }
+
+    private void invalidateAllPaginators() {
+        for (CommandTree tree : trees.values()) {
+            tree.invalidatePaginator();
+        }
+    }
+
+    public HelpFormat getHelpFormat() {
+        return helpFormat;
+    }
+
+    public HelpFormat getPaginatorFormat() {
+        return helpFormat;
+    }
+
+    public Commando setHelpFormat(HelpFormat helpFormat) {
+        this.helpFormat = (helpFormat != null) ? helpFormat : HelpFormat.defaultFormat();
+        invalidateAllPaginators();
+        return this;
+    }
+
+    public Commando setPaginatorFormat(HelpFormat helpFormat) {
+        return setHelpFormat(helpFormat);
+    }
+
+    public Commando setHelpFormat(String header, String entry, String footer) {
+        return setHelpFormat(new HelpFormat(header, entry, footer));
+    }
+
+    public Commando setPaginatorFormat(String header, String entry, String footer) {
+        return setHelpFormat(header, entry, footer);
+    }
+
+    public Commando setHelpFormat(String header, String entry, String footer, String emptyMessage) {
+        return setHelpFormat(new HelpFormat(header, entry, footer, emptyMessage));
+    }
+
+    public Commando setPaginatorFormat(String header, String entry, String footer, String emptyMessage) {
+        return setHelpFormat(header, entry, footer, emptyMessage);
+    }
+
+    public Commando setHelpHeaderFormat(String... header) {
+        this.helpFormat = this.helpFormat.toBuilder().header(header).build();
+        invalidateAllPaginators();
+        return this;
+    }
+
+    public Commando setPaginatorHeaderFormat(String... header) {
+        return setHelpHeaderFormat(header);
+    }
+
+    public Commando setHelpEntryFormat(String entry) {
+        this.helpFormat = this.helpFormat.toBuilder().entry(entry).build();
+        invalidateAllPaginators();
+        return this;
+    }
+
+    public Commando setPaginatorEntryFormat(String entry) {
+        return setHelpEntryFormat(entry);
+    }
+
+    public Commando setHelpFooterFormat(String... footer) {
+        this.helpFormat = this.helpFormat.toBuilder().footer(footer).build();
+        invalidateAllPaginators();
+        return this;
+    }
+
+    public Commando setPaginatorFooterFormat(String... footer) {
+        return setHelpFooterFormat(footer);
+    }
+
+    public Commando setHelpEmptyMessage(String... emptyMessage) {
+        this.helpFormat = this.helpFormat.toBuilder().emptyMessage(emptyMessage).build();
+        invalidateAllPaginators();
+        return this;
+    }
+
+    public Commando setPaginatorEmptyMessage(String... emptyMessage) {
+        return setHelpEmptyMessage(emptyMessage);
     }
 }

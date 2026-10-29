@@ -95,12 +95,16 @@ public class CommandTree {
         this.cachedPaginator = null;
     }
 
+    public void invalidatePaginator() {
+        this.cachedPaginator = null;
+    }
+
     public HelpPaginator getPaginator() {
         if (cachedPaginator == null) {
             List<HelpEntry> entries = new ArrayList<>();
             rootNode.collectHelpEntries(entries);
             int perPage = (helpHandler != null) ? helpHandler.getEntriesPerPage() : 6;
-            cachedPaginator = new HelpPaginator(rootName, perPage, entries);
+            cachedPaginator = new HelpPaginator(rootName, perPage, entries, framework.getHelpFormat());
         }
         return cachedPaginator;
     }

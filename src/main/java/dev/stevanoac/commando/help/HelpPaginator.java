@@ -17,12 +17,18 @@ public class HelpPaginator {
     private final String rootCommand;
     private final int entriesPerPage;
     private final List<HelpEntry> entries;
+    private HelpFormat format;
 
     public HelpPaginator(String rootCommand, int entriesPerPage, List<HelpEntry> entries) {
+        this(rootCommand, entriesPerPage, entries, HelpFormat.defaultFormat());
+    }
+
+    public HelpPaginator(String rootCommand, int entriesPerPage, List<HelpEntry> entries, HelpFormat format) {
         this.rootCommand = rootCommand;
         this.entriesPerPage = (entriesPerPage > 0) ? entriesPerPage : 6;
         this.entries = new ArrayList<>(entries);
         this.entries.sort(Comparator.comparing(HelpEntry::getSyntax));
+        this.format = (format != null) ? format : HelpFormat.defaultFormat();
     }
 
     /**
@@ -62,6 +68,25 @@ public class HelpPaginator {
     }
 
     /**
+     * Convenience method to render and send page 1 of help to the command sender.
+     *
+     * @param sender the command sender
+     */
+    public void send(CommandSender sender) {
+        sendHelp(sender, 1);
+    }
+
+    /**
+     * Convenience method to render and send the requested page of help to the command sender.
+     *
+     * @param sender the command sender
+     * @param requestedPage 1-based requested page number
+     */
+    public void send(CommandSender sender, int requestedPage) {
+        sendHelp(sender, requestedPage);
+    }
+
+    /**
      * Renders and sends the requested help page to the command sender.
      *
      * @param sender the command sender
@@ -71,7 +96,12 @@ public class HelpPaginator {
         List<HelpEntry> visible = getVisibleEntries(sender);
 
         if (visible.isEmpty()) {
-            sender.sendMessage(ChatColor.YELLOW + "No commands available for /" + rootCommand + ".");
+            List<String> emptyLines = format.getEmptyMessageLines();
+            if (emptyLines != null && !emptyLines.isEmpty()) {
+                for (String line : emptyLines) {
+                    sender.sendMessage(applyHeaderFooterPlaceholders(line, rootCommand, 1, 1, 0));
+                }
+            }
             return;
         }
 
@@ -92,24 +122,114 @@ public class HelpPaginator {
         int endIndex = Math.min(startIndex + entriesPerPage, visible.size());
 
         // Header
-        sender.sendMessage(ChatColor.YELLOW + "=== " + ChatColor.GOLD + rootCommand.toUpperCase() + " Help ("
-                + page + "/" + totalPages + ") " + ChatColor.YELLOW + "===");
+        List<String> headerLines = format.getHeaderLines();
+        if (headerLines != null) {
+            for (String line : headerLines) {
+                sender.sendMessage(applyHeaderFooterPlaceholders(line, rootCommand, page, totalPages, visible.size()));
+            }
+        }
 
         // Entries
-        for (int i = startIndex; i < endIndex; i++) {
-            HelpEntry entry = visible.get(i);
-            String desc = entry.getDescription().isEmpty() ? "" : ChatColor.GRAY + " - " + entry.getDescription();
-            sender.sendMessage(ChatColor.GOLD + "/" + entry.getSyntax() + desc);
+        String entryTemplate = format.getEntryFormat();
+        if (entryTemplate != null && !entryTemplate.isEmpty()) {
+            for (int i = startIndex; i < endIndex; i++) {
+                HelpEntry entry = visible.get(i);
+                sender.sendMessage(applyEntryPlaceholders(entryTemplate, entry, rootCommand, page, totalPages));
+            }
         }
 
         // Footer
-        if (page < totalPages) {
-            sender.sendMessage(ChatColor.YELLOW + "Use " + ChatColor.GOLD + "/" + rootCommand + " help " + (page + 1)
-                    + ChatColor.YELLOW + " for more.");
-        } else {
-            sender.sendMessage(ChatColor.YELLOW + "Use " + ChatColor.GOLD + "/" + rootCommand + " help <page> "
-                    + ChatColor.YELLOW + "for more.");
+        List<String> footerLines = (page >= totalPages && format.getLastPageFooterLines() != null && !format.getLastPageFooterLines().isEmpty())
+                ? format.getLastPageFooterLines()
+                : format.getFooterLines();
+        if (footerLines != null) {
+            for (String line : footerLines) {
+                sender.sendMessage(applyHeaderFooterPlaceholders(line, rootCommand, page, totalPages, visible.size()));
+            }
         }
+    }
+
+    private String applyHeaderFooterPlaceholders(String template, String rootCommand, int page, int totalPages, int totalEntries) {
+        if (template == null) {
+            return "";
+        }
+        int nextPage = Math.min(page + 1, totalPages);
+        int prevPage = Math.max(page - 1, 1);
+
+        String result = template
+                .replace("%COMMAND%", rootCommand.toUpperCase())
+                .replace("{COMMAND}", rootCommand.toUpperCase())
+                .replace("%ROOT%", rootCommand.toUpperCase())
+                .replace("{ROOT}", rootCommand.toUpperCase())
+                .replace("%command%", rootCommand)
+                .replace("{command}", rootCommand)
+                .replace("%root%", rootCommand)
+                .replace("{root}", rootCommand)
+                .replace("%page%", String.valueOf(page))
+                .replace("{page}", String.valueOf(page))
+                .replace("%maxPages%", String.valueOf(totalPages))
+                .replace("{maxPages}", String.valueOf(totalPages))
+                .replace("%totalPages%", String.valueOf(totalPages))
+                .replace("{totalPages}", String.valueOf(totalPages))
+                .replace("%nextPage%", String.valueOf(nextPage))
+                .replace("{nextPage}", String.valueOf(nextPage))
+                .replace("%prevPage%", String.valueOf(prevPage))
+                .replace("{prevPage}", String.valueOf(prevPage))
+                .replace("%totalEntries%", String.valueOf(totalEntries))
+                .replace("{totalEntries}", String.valueOf(totalEntries));
+
+        return ChatColor.translateAlternateColorCodes('&', result);
+    }
+
+    private String applyEntryPlaceholders(String template, HelpEntry entry, String rootCommand, int page, int totalPages) {
+        if (template == null) {
+            return "";
+        }
+
+        String result = template;
+        String desc = entry.getDescription();
+        if (desc == null || desc.trim().isEmpty()) {
+            result = result.replaceAll("(?i)(\\s*(&[0-9a-fk-or])?\\s*-\\s*)?%description%", "");
+            result = result.replaceAll("(?i)(\\s*(&[0-9a-fk-or])?\\s*-\\s*)?\\{description\\}", "");
+        } else {
+            result = result.replace("%description%", desc).replace("{description}", desc);
+        }
+
+        result = result
+                .replace("%COMMAND%", rootCommand.toUpperCase())
+                .replace("{COMMAND}", rootCommand.toUpperCase())
+                .replace("%root%", rootCommand)
+                .replace("{root}", rootCommand)
+                .replace("%syntax%", entry.getSyntax())
+                .replace("{syntax}", entry.getSyntax())
+                .replace("%command%", entry.getSyntax())
+                .replace("{command}", entry.getSyntax())
+                .replace("%permission%", entry.getPermission() != null ? entry.getPermission() : "")
+                .replace("{permission}", entry.getPermission() != null ? entry.getPermission() : "")
+                .replace("%page%", String.valueOf(page))
+                .replace("{page}", String.valueOf(page))
+                .replace("%maxPages%", String.valueOf(totalPages))
+                .replace("{maxPages}", String.valueOf(totalPages))
+                .replace("%totalPages%", String.valueOf(totalPages))
+                .replace("{totalPages}", String.valueOf(totalPages));
+
+        return ChatColor.translateAlternateColorCodes('&', result);
+    }
+
+    public HelpFormat getFormat() {
+        return format;
+    }
+
+    public void setFormat(HelpFormat format) {
+        this.format = (format != null) ? format : HelpFormat.defaultFormat();
+    }
+
+    public void setFormat(String header, String entry, String footer) {
+        setFormat(new HelpFormat(header, entry, footer));
+    }
+
+    public void setFormat(String header, String entry, String footer, String emptyMessage) {
+        setFormat(new HelpFormat(header, entry, footer, emptyMessage));
     }
 
     public String getRootCommand() {
