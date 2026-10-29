@@ -1,38 +1,23 @@
 # Commando
 
-A lightweight, annotation-based command framework for Spigot and Paper. Built to replace massive `if (args[0].equalsIgnoreCase(...))` ladders and messy `plugin.yml` setups with clean routing, native type parsing, and proper dependency injection.
-
-Compatible with everything from legacy **1.8.8** up to modern **1.21+**.
+Commando is a modern command library for Spigot and Paper servers (1.8.8 – 1.21+). It handles nested subcommands, tab-completion, type parsing, and paginated help using annotations—without needing to touch `plugin.yml`.
 
 ---
 
-## Why Commando?
+## Installation
 
-Most older Spigot command frameworks force you to either write zero-arg constructors (leading to `MyPlugin.getInstance()` everywhere) or create separate classes for every subcommand. Commando takes a cleaner approach:
-
-- **Constructor Injection:** Pass your plugin instances, managers, or database clients straight into command classes.
-- **No `plugin.yml` Boilerplate:** Commands are injected directly into Bukkit's internal `CommandMap` at runtime.
-- **Path-Based Routing:** Define root commands and subcommands using simple paths like `@Command(name = "arena delete")`.
-- **Custom Argument Adapters:** Pass objects like `Arena`, `Kit`, or `Player` directly into your method parameters. Commando parses them and suggests them via tab-completion automatically.
-- **Built-In Session Cooldowns:** Add quick rate limits (`cooldown = 3`) without writing cooldown maps or task timers.
-- **Automatic Paginated Help:** Generate clean, permission-checked `/<command> help [page]` menus automatically.
-
----
-
-## Setup
-
-Add Commando to your `pom.xml`:
+Add the dependency to your `pom.xml`:
 
 ```xml
 <dependency>
     <groupId>dev.stevanoac</groupId>
-    <artifactId>commando</artifactId>
-    <version>1.0.0</version>
+    <artifactId>Commando</artifactId>
+    <version>1.0-SNAPSHOT</version>
     <scope>compile</scope>
 </dependency>
 ```
 
-If you're shading it into your final jar, make sure to relocate it in the `maven-shade-plugin` so it doesn't collide with other plugins using it:
+If you shade Commando into your jar, relocate it in `maven-shade-plugin` so it won't conflict with other plugins:
 
 ```xml
 <plugin>
@@ -49,7 +34,7 @@ If you're shading it into your final jar, make sure to relocate it in the `maven
                 <relocations>
                     <relocation>
                         <pattern>dev.stevanoac.commando</pattern>
-                        <shadedPattern>com.yourplugin.libs.commando</shadedPattern>
+                        <shadedPattern>com.yourname.yourplugin.libs.commando</shadedPattern>
                     </relocation>
                 </relocations>
             </configuration>
@@ -60,11 +45,11 @@ If you're shading it into your final jar, make sure to relocate it in the `maven
 
 ---
 
-## Usage
+## Quick Start
 
-### 1. Initialize & Register
+### 1. Initialize in `onEnable`
 
-Set up Commando in your plugin's `onEnable()`. Because you register instances rather than classes, you can pass whatever dependencies your command needs:
+Commands are registered as instances, so you can pass whatever dependencies your handlers need directly through constructors:
 
 ```java
 public class MyPlugin extends JavaPlugin {
@@ -73,60 +58,82 @@ public class MyPlugin extends JavaPlugin {
 
     @Override
     public void onEnable() {
-        ArenaManager arenaManager = new ArenaManager(this);
-
         this.commando = new Commando(this);
 
-        // Register custom adapters
-        this.commando.registerAdapter(Arena.class, new ArenaAdapter(arenaManager));
-
-        // Register commands with injected dependencies
-        this.commando.register(new ArenaCommand(this, arenaManager));
+        // Register command classes
+        this.commando.register(new WarpCommand(this));
     }
 }
 ```
 
-### 2. Creating Commands
+### 2. Create a Command Class
 
-Methods annotate their route directly in `@Command`. Commands are player-only by default; set `console = true` if you want terminal execution allowed.
+Annotate your methods with `@Command`. The first argument can be `Player` (player-only by default) or `CommandSender` (players and console).
 
 ```java
-public class ArenaCommand {
+@Command(name = "warp", description = "Base warp command")
+public class WarpCommand {
 
     private final MyPlugin plugin;
-    private final ArenaManager arenaManager;
 
-    public ArenaCommand(MyPlugin plugin, ArenaManager arenaManager) {
+    public WarpCommand(MyPlugin plugin) {
         this.plugin = plugin;
-        this.arenaManager = arenaManager;
     }
 
-    // Default route: /arena
-    @Command(name = "arena", description = "Base arena command")
-    public void onRoot(Player player) {
-        player.sendMessage("§eType §6/arena help §efor a list of subcommands.");
+    // Fallback when a player just types "/warp"
+    @Default
+    public void onDefault(Player player) {
+        player.sendMessage("§eType §6/warp help §efor a list of warps.");
     }
 
-    // Subcommand: /arena create <name>
-    @Command(name = "arena create", permission = "arena.admin", description = "Create an arena")
-    public void onCreate(Player player, String name) {
-        arenaManager.createArena(name);
-        player.sendMessage("§aArena " + name + " created.");
+    // Subcommand: /warp to <name>
+    @Command(name = "to", permission = "warp.use", description = "Teleport to a warp")
+    public void onTeleport(Player player, String warpName) {
+        player.sendMessage("§aTeleporting to " + warpName + "...");
     }
 
-    // Subcommand: /arena delete <arena> (Parses custom Arena object automatically)
-    // Cooldown is set to 5 seconds
-    @Command(name = "arena delete", permission = "arena.admin", cooldown = 5, console = true, description = "Delete an arena")
-    public void onDelete(CommandSender sender, Arena arena) {
-        arenaManager.deleteArena(arena);
-        sender.sendMessage("§aDeleted arena: " + arena.getName());
+    // Subcommand: /warp set <name>
+    // Rate-limited to once every 5 seconds
+    @Command(name = "set", permission = "warp.admin", cooldown = 5, description = "Create a warp")
+    public void onSet(Player player, String warpName) {
+        player.sendMessage("§aWarp " + warpName + " created!");
+    }
+
+    // Console-friendly command: /warp reload
+    @Command(name = "reload", permission = "warp.admin", console = true, description = "Reload warps")
+    public void onReload(CommandSender sender) {
+        sender.sendMessage("§aWarps reloaded.");
     }
 }
 ```
 
-### 3. Argument Adapters (Parsing & Auto Tab-Complete)
+---
 
-Adapters handle two things: turning raw string input into real Java objects, and supplying suggestions for tab completion.
+## Key Features
+
+### Built-In Argument Parsers
+
+Method parameters after the sender are parsed automatically. If an argument is missing or invalid, Commando displays a clean usage message.
+
+Supported out of the box:
+- `String`
+- `int` / `Integer`
+- `double` / `Double`
+- `boolean` / `Boolean`
+- `Player` (auto-completed by online player names)
+- `String[]` (captures any trailing varargs)
+- `CommandArgs` (wrapper with helper methods like `.joinArgs()` and `.hasPermission()`)
+
+```java
+@Command(name = "eco give", permission = "eco.admin", console = true)
+public void giveMoney(CommandSender sender, Player target, double amount) {
+    sender.sendMessage("Gave $" + amount + " to " + target.getName());
+}
+```
+
+### Custom Argument Adapters
+
+Define custom argument types so your command methods receive real objects instead of raw strings. Implement `ArgumentAdapter<T>`:
 
 ```java
 public class ArenaAdapter implements ArgumentAdapter<Arena> {
@@ -155,91 +162,94 @@ public class ArenaAdapter implements ArgumentAdapter<Arena> {
 }
 ```
 
-Whenever a method expects an `Arena` parameter, Commando runs this adapter to resolve the argument. If the player types an invalid name, it catches the exception and sends them the error message automatically.
-
-### 4. Paginated Help & Custom Formatting
-
-Add `@Help` to automatically generate a `/<command> help [page]` route for any root command. Commando filters the list so players only see commands they actually have permission to run.
+Register it once with Commando:
 
 ```java
-public class ArenaCommand {
+commando.registerAdapter(Arena.class, new ArenaAdapter(arenaManager));
+```
 
-    // Handles: /arena help [page]
-    @Help(command = "arena", entriesPerPage = 5)
-    public void onHelp(CommandSender sender, HelpPaginator help) {
-        help.send(sender);
-    }
+Now you can use `Arena` anywhere in your command methods with automatic tab-completion and error handling:
+
+```java
+@Command(name = "arena delete", permission = "arena.admin")
+public void deleteArena(Player player, Arena arena) {
+    arenaManager.delete(arena);
+    player.sendMessage("§aArena deleted: " + arena.getName());
 }
 ```
 
-#### Customizing Help Formats
+---
 
-You can customize the layout, colors, and placeholders globally across all commands using `commando.setHelpFormat(...)` (or `commando.setPaginatorFormat(...)`):
+### Paginated Help
+
+Commando automatically builds permission-checked help menus for `/<command> help [page]`.
+
+#### Custom Help Formatting
+
+You can customize the layout, colors, and placeholders globally with `setPaginatorFormat`:
 
 ```java
-// Quick 3-part header / entry / footer format
 commando.setPaginatorFormat(
-    "&8------\n&eHelp &6%page% &7/ &6%maxPages%",
+    "&8------\n&eHelp %page% / %maxPages%",
     "&e/%command% &7- %description%",
     "&8------"
 );
 ```
 
-Or configure it with the fluent builder for advanced control (e.g. separate last-page footers, empty messages):
+Or use the builder for complete control over headers, footers, last-page footers, and empty messages:
 
 ```java
 commando.setHelpFormat(HelpFormat.builder()
     .header("&8&m----------------------------------------", "&eHelp for &6/%COMMAND% &7(&e%page%&7/&e%maxPages%&7)")
     .entry("  &e/%syntax% &7- %description%")
-    .footer("&7Type &e/%command% help %nextPage% &7for more pages.", "&8&m----------------------------------------")
-    .lastPageFooter("&7You have reached the end of the help list.", "&8&m----------------------------------------")
-    .emptyMessage("&cNo commands are currently available.")
+    .footer("&7Type &e/%command% help %nextPage% &7for more.", "&8&m----------------------------------------")
+    .lastPageFooter("&7End of help list.", "&8&m----------------------------------------")
+    .emptyMessage("&cNo commands available for /%command%.")
     .build()
 );
 ```
 
-You can also override formats individually on any `HelpPaginator` inside your `@Help` method via `help.setFormat(...)`.
+#### Help Placeholders
 
-#### Available Placeholders
+| Placeholder | Where | Description |
+| :--- | :--- | :--- |
+| `%command%` / `%root%` | Header / Footer / Empty | Root command name (e.g. `warp`) |
+| `%COMMAND%` / `%ROOT%` | Header / Footer / Empty | Uppercase root command name (e.g. `WARP`) |
+| `%page%` | Header / Footer / Entry | Current page number |
+| `%maxPages%` / `%totalPages%` | Header / Footer / Entry | Total page count |
+| `%nextPage%` | Header / Footer | Next page number |
+| `%prevPage%` | Header / Footer | Previous page number |
+| `%totalEntries%` | Header / Footer | Total count of visible commands |
+| `%syntax%` / `%command%` | Entry | Full route syntax (e.g. `warp set <name>`) |
+| `%description%` | Entry | Command description (cleans up preceding ` - ` when blank) |
+| `%permission%` | Entry | Permission node required |
 
-- **Header / Footer / Empty Message:**
-  - `%command%` / `%root%` — Root command name (e.g. `arena`)
-  - `%COMMAND%` / `%ROOT%` — Uppercase root command name (e.g. `ARENA`)
-  - `%page%` — Current page number
-  - `%maxPages%` / `%totalPages%` — Total available pages
-  - `%nextPage%` — Next page number
-  - `%prevPage%` — Previous page number
-  - `%totalEntries%` — Total count of visible commands
-- **Entry Lines:**
-  - `%command%` / `%syntax%` — Command route syntax (e.g. `arena create <name>`)
-  - `%description%` — Command description (automatically cleans up preceding ` - ` when empty)
-  - `%permission%` — Permission node required
-  - `%page%`, `%maxPages%`, `%root%`, `%COMMAND%`
-- All lines support standard Minecraft `&` color code translations automatically (both `%placeholder%` and `{placeholder}` styles are accepted).
+> Both `%placeholder%` and `{placeholder}` syntaxes work, and `&` color codes are converted automatically.
+
+#### Custom `@Help` Methods
+
+If you need custom handling for a specific root command's help route:
+
+```java
+@Help(command = "warp", entriesPerPage = 5)
+public void onHelp(CommandSender sender, HelpPaginator help, int page) {
+    // Optionally customize formatting for this command only
+    help.setFormat("&8--- &eWarp Help &8---", "&6/%command% &7- %description%", "&8-----------------");
+    help.send(sender, page);
+}
 ```
 
 ---
 
-## Annotation Quick Reference
+### Customizing Default Messages
 
-### `@Command`
+You can override standard framework messages during setup:
 
-| Property | Type | Default | Description |
-| :--- | :--- | :--- | :--- |
-| `name` | `String` | *Required* | Path route (e.g. `"fly"` or `"arena setspawn"`). |
-| `aliases` | `String[]` | `{}` | Command aliases. |
-| `permission` | `String` | `""` | Bukkit permission required to run. |
-| `description` | `String` | `""` | Description displayed in help menus. |
-| `console` | `boolean` | `false` | Whether console can execute the command. |
-| `cooldown` | `long` | `0` | Rate-limit in seconds (tracked in-memory per UUID). |
-| `cooldownMessage` | `String` | Default | Error string displayed on cooldown (supports `%time%`). |
-
-### `@Help`
-
-| Property | Type | Default | Description |
-| :--- | :--- | :--- | :--- |
-| `command` | `String` | *Required* | Target root command name (e.g. `"arena"`). |
-| `entriesPerPage` | `int` | `6` | Number of entries rendered per page. |
+```java
+commando.setPlayerOnlyMessage("&cOnly players can run this command.");
+commando.setNoPermissionMessage("&cYou do not have permission to do that.");
+commando.setCooldownMessage("&cPlease wait {seconds}s before using this command again.");
+```
 
 ---
 
